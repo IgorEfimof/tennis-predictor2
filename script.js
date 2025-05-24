@@ -230,14 +230,42 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function displayResults(probA, probB) {
-        const winner = probA > probB ? "Игрок A" : "Игрок B";
-        const confidence = Math.max(probA, probB);
-        
-        avgASpan.textContent = probA.toFixed(1) + '%';
-        avgBSpan.textContent = probB.toFixed(1) + '%';
-        winnerSpan.textContent = `${winner} (${confidence.toFixed(1)}% уверенность)`;
-        
-        resultDiv.classList.remove("hidden");
+    // 1. Обновляем текстовые результаты
+    const winner = probA > probB ? "Игрок A" : "Игрок B";
+    const confidence = Math.max(probA, probB) * 100;
+    
+    avgASpan.textContent = `${(probA * 100).toFixed(1)}%`;
+    avgBSpan.textContent = `${(probB * 100).toFixed(1)}%`;
+    winnerSpan.textContent = `${winner} (${confidence.toFixed(1)}% уверенность)`;
+    
+    // 2. Создаем HTML-элемент для анализа (если его нет)
+    let analysisDiv = document.getElementById('analysis');
+    if (!analysisDiv) {
+        analysisDiv = document.createElement('div');
+        analysisDiv.id = 'analysis';
+        analysisDiv.className = 'analysis';
+        resultDiv.appendChild(analysisDiv);
+    }
+
+    // 3. Генерируем текстовый анализ
+    let analysisText = "";
+    const diff = Math.abs(probA - probB);
+    
+    if (diff < 0.15) {
+        analysisText = "⚔️ Ожидается равная борьба!";
+    } else if (probA > 0.7) {
+        analysisText = "🔥 Игрок A — явный фаворит";
+    } else if (probB > 0.7) {
+        analysisText = "🔥 Игрок B — явный фаворит";
+    } else {
+        analysisText = "🎾 Интригующий матч!";
+    }
+    
+    analysisDiv.innerHTML = analysisText;
+
+    // 4. Обновляем график
+    updateChart([probA * 100], [probB * 100]); // Передаем проценты
+}
     }
 
     function updateChart(valuesA, valuesB) {
