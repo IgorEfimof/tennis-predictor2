@@ -405,7 +405,7 @@
           const { xs, ys } = generateTrainingData();
           
           await newModel.fit(xs, ys, {
-            epochs: 100,
+            epochs: 30,
             batchSize: 16,
             validationSplit: 0.2,
             callbacks: {
