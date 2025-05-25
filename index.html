@@ -16,18 +16,25 @@
       margin: 10px 0;
       display: flex;
       gap: 10px;
+      align-items: center;
     }
     input {
       width: 80px;
-      padding: 5px;
+      padding: 10px;
+      font-size: 16px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 4px;
     }
     button {
-      padding: 10px 15px;
+      padding: 12px 20px;
       background: #4CAF50;
       color: white;
       border: none;
+      border-radius: 4px;
       cursor: pointer;
-      margin-top: 10px;
+      margin-top: 20px;
+      font-size: 16px;
     }
     #result {
       margin-top: 20px;
@@ -42,7 +49,7 @@
 </head>
 <body>
   <h1>Прогноз теннисного матча</h1>
-  <p>Введите коэффициенты для каждого игрока (от 1.0 до 5.0)</p>
+  <p>Введите коэффициенты для каждого игрока (от 1.00 до 5.00)</p>
   
   <div id="games-container"></div>
   
@@ -65,16 +72,66 @@
 
       // Создаем поля для ввода
       const gamesContainer = document.getElementById('games-container');
+      const inputs = [];
+      
       for (let i = 1; i <= 5; i++) {
         const div = document.createElement('div');
         div.className = 'game-input';
         div.innerHTML = `
           <span>Гейм ${i}:</span>
-          <input type="number" id="game-${i}-a" placeholder="A" min="1" max="5" step="0.01">
-          <input type="number" id="game-${i}-b" placeholder="B" min="1" max="5" step="0.01">
+          <input type="text" id="game-${i}-a" placeholder="A" inputmode="decimal">
+          <input type="text" id="game-${i}-b" placeholder="B" inputmode="decimal">
         `;
         gamesContainer.appendChild(div);
+        
+        const inputA = document.getElementById(`game-${i}-a`);
+        const inputB = document.getElementById(`game-${i}-b`);
+        inputs.push(inputA, inputB);
       }
+
+      // Автоматический переход между полями и обработка ввода
+      inputs.forEach((input, index) => {
+        // Обработка ввода чисел с автоматической точкой
+        input.addEventListener('input', function(e) {
+          let value = e.target.value.replace(',', '.').replace(/[^0-9.]/g, '');
+          
+          // Проверяем диапазон 1.00-5.00
+          const numValue = parseFloat(value);
+          if (numValue > 5.0) {
+            value = '5.00';
+          } else if (numValue < 1.0 && value.length > 0 && value !== '') {
+            value = '1.00';
+          }
+          
+          // Форматируем до 2 знаков после запятой
+          const parts = value.split('.');
+          if (parts.length > 1) {
+            parts[1] = parts[1].slice(0, 2);
+            value = parts.join('.');
+          }
+          
+          e.target.value = value;
+          
+          // Автоматический переход к следующему полю при вводе 2 цифр
+          if (value.length >= 2 && index < inputs.length - 1) {
+            inputs[index + 1].focus();
+          }
+        });
+        
+        // Обработка нажатия Enter
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (index < inputs.length - 1) {
+              inputs[index + 1].focus();
+            } else {
+              // Для последнего поля - скрываем клавиатуру и активируем кнопку
+              input.blur();
+              document.getElementById('predict-btn').focus();
+            }
+          }
+        });
+      });
 
       // Создаем простую модель
       const createModel = () => {
@@ -156,7 +213,7 @@
             const b = parseFloat(document.getElementById(`game-${i}-b`).value);
             
             if (isNaN(a) || isNaN(b) || a < 1 || a > 5 || b < 1 || b > 5) {
-              alert(`Пожалуйста, введите корректные значения для Гейма ${i} (от 1.0 до 5.0)`);
+              alert(`Пожалуйста, введите корректные значения для Гейма ${i} (от 1.00 до 5.00)`);
               return;
             }
             
