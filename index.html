@@ -276,7 +276,7 @@
       for (let i = 1; i <= gameCount; i++) {
         const div = document.createElement("div");
         div.className = "game-input";
-        div.innerHTML = 
+        div.innerHTML = `
           <div class="game-input-group">
             <label for="game-${i}-a">Гейм ${i} (A)</label>
             <input type="text" id="game-${i}-a" inputmode="decimal" 
@@ -287,7 +287,7 @@
             <input type="text" id="game-${i}-b" inputmode="decimal" 
                    data-player="b" data-id="${i}" placeholder="1.50">
           </div>
-        ;
+        `;
         gamesContainer.appendChild(div);
       }
 
@@ -376,7 +376,7 @@
         const patterns = [
           { start: 1.5, trend: -0.02, noise: 0.05, label: 1 }, // Игрок A выигрывает
           { start: 2.5, trend: 0.03, noise: 0.08, label: 0 },  // Игрок B выигрывает
-          { start: 1.9, trend: 0.0, noise: 0.1, label: Math.random() > 0.5 ? 1 : 0 } // Случайный результат
+          { start: 1.9, trend: 0.0, noise: 0.1, label: 0.5 }    // Нейтральный сценарий
         ];
 
         for (let i = 0; i < samples; i++) {
@@ -411,7 +411,7 @@
             callbacks: {
               onEpochEnd: (epoch, logs) => {
                 if ((epoch + 1) % 20 === 0) {
-                  console.log(Эпоха ${epoch + 1}: Ошибка = ${logs.loss.toFixed(4)});
+                  console.log(`Эпоха ${epoch + 1}: Ошибка = ${logs.loss.toFixed(4)}`);
                 }
               }
             }
@@ -476,15 +476,18 @@
           const processedB = normalizeCoefficients(padArray(playerB, 10));
           
           // Делаем прогноз
-          const predictionA = await model.predict(tf.tensor2d([processedA])).data();
-          const predictionB = await model.predict(tf.tensor2d([processedB])).data();
+          const tensorA = tf.tensor2d([processedA]);
+          const tensorB = tf.tensor2d([processedB]);
+          
+          const predictionA = await model.predict(tensorA).data();
+          const predictionB = await model.predict(tensorB).data();
           
           // Вероятности победы (прямое значение prediction)
           const probA = (predictionA[0] * 100).toFixed(1);
           const probB = (predictionB[0] * 100).toFixed(1);
           
           // Очищаем тензоры
-          tf.dispose([predictionA, predictionB]);
+          tf.dispose([tensorA, tensorB]);
           
           displayResults(probA, probB, playerA, playerB);
           
@@ -502,9 +505,9 @@
         const confidence = Math.max(probA, probB);
         const diff = Math.abs(probA - probB);
         
-        probASpan.textContent = ${probA}%;
-        probBSpan.textContent = ${probB}%;
-        winnerSpan.textContent = ${winner} (${confidence}% уверенность);
+        probASpan.textContent = `${probA}%`;
+        probBSpan.textContent = `${probB}%`;
+        winnerSpan.textContent = `${winner} (${confidence}% уверенность)`;
         
         // Анализ результата
         let analysis = "";
@@ -534,7 +537,7 @@
         chartInstance = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: Array.from({ length: Math.max(valuesA.length, valuesB.length) }, (_, i) => Гейм ${i + 1}),
+            labels: Array.from({ length: Math.max(valuesA.length, valuesB.length) }, (_, i) => `Гейм ${i + 1}`),
             datasets: [
               {
                 label: 'Игрок A',
@@ -570,7 +573,7 @@
               },
               tooltip: {
                 callbacks: {
-                  label: (ctx) => ${ctx.dataset.label}: ${ctx.raw.toFixed(2)}
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(2)}`
                 },
                 bodyFont: {
                   size: 12
