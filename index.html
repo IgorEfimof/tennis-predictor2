@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Прогноз победителя в настольном теннисе</title>
   <!-- Подключаем TensorFlow.js и Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0" async></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * {
@@ -286,7 +286,7 @@
         callbacks: {
           onEpochEnd: (epoch, logs) => {
             if ((epoch + 1) % 10 === 0) {
-              console.log(`Epoch ${epoch + 1}: Loss = ${logs.loss.toFixed(4)}, Accuracy = ${logs.acc.toFixed(4)}`);
+              console.log(`Epoch ${epoch + 1}: Loss = ${logs.loss.toFixed(4)}, Accuracy = ${logs.accuracy.toFixed(4)}`);
             }
           }
         }
@@ -472,9 +472,5 @@
         });
       });
     });
-  <script src="data.js"></script>
-  <script src="ensemble.js"></script>
-  <script src="main.js"></script>
-  <script src="script.js"></script>
 </body>
 </html>
