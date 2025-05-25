@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Прогноз победителя в настольном теннисе</title>
   <!-- Подключаем TensorFlow.js и Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"async></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * {
@@ -122,6 +122,32 @@
     .hidden {
       display: none;
     }
+    .loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .spinner {
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #4f46e5;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -130,6 +156,9 @@
       margin-top: 1rem;
       width: 100% !important;
       height: 200px !important;
+      background: #1e1e1e;
+      border-radius: 8px;
+      padding: 10px;
     }
     @media (max-width: 768px) {
       .game-input {
@@ -163,17 +192,17 @@
   <div class="container">
     <header>
       <h1>Прогноз победителя в настольном теннисе</h1>
-      <p>Введите коэффициенты на игроков A и B по каждому гейму.</p>
+      <p>Введите коэффициенты на игроков A и B по каждому гейму (формат: 1.50)</p>
     </header>
     <main>
       <div class="players">
         <div class="player player-a">
-          <img src="images/Photoroom_20250515_222050.jpeg" alt="Игрок A" />
+          <img src="images/Photoroom_20250515_222050.jpeg" alt="Игрок A" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" fill=\"%234f46e5\"><rect width=\"100\" height=\"100\"/></svg>'" />
           <span>Игрок A</span>
           <span class="score">0</span>
         </div>
         <div class="player player-b">
-          <img src="images/Photoroom_20250515_221809.jpeg" alt="Игрок B" />
+          <img src="images/Photoroom_20250515_221809.jpeg" alt="Игрок B" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\" fill=\"%23ec4899\"><rect width=\"100\" height=\"100\"/></svg>'" />
           <span>Игрок B</span>
           <span class="score">0</span>
         </div>
@@ -185,13 +214,25 @@
         <p>Средний коэффициент игрока A: <span id="avgA"></span></p>
         <p>Средний коэффициент игрока B: <span id="avgB"></span></p>
         <p><strong>Победитель:</strong> <span id="winner"></span></p>
+        <div id="analysis" class="analysis"></div>
       </div>
       <canvas id="chart"></canvas>
     </main>
   </div>
 
+  <div id="loader" class="loader hidden">
+    <div class="spinner"></div>
+    <p>Анализируем данные...</p>
+  </div>
+
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+      // Проверка загрузки TensorFlow.js
+      if (!window.tf) {
+        alert("TensorFlow.js не загружен. Пожалуйста, обновите страницу.");
+        return;
+      }
+
       const gameCount = 10;
       const gamesContainer = document.getElementById("games");
       const predictBtn = document.getElementById("predictBtn");
@@ -199,279 +240,274 @@
       const avgASpan = document.getElementById("avgA");
       const avgBSpan = document.getElementById("avgB");
       const winnerSpan = document.getElementById("winner");
+      const analysisDiv = document.getElementById("analysis");
       const chartCanvas = document.getElementById("chart");
+      const loader = document.getElementById("loader");
       let chartInstance = null;
+      let currentPrediction = null;
 
       // Создаем поля для геймов
       for (let i = 1; i <= gameCount; i++) {
         const div = document.createElement("div");
         div.className = "game-input";
         div.innerHTML = `
-          <input type="text" inputmode="numeric" placeholder="Коэф. A" data-player="a" data-id="${i}" maxlength="5">
-          <input type="text" inputmode="numeric" placeholder="Коэф. B" data-player="b" data-id="${i}" maxlength="5">
+          <input type="text" inputmode="decimal" placeholder="Гейм ${i} (A)" 
+                 data-player="a" data-id="${i}" pattern="[1-5](\.[0-9]{1,2})?">
+          <input type="text" inputmode="decimal" placeholder="Гейм ${i} (B)" 
+                 data-player="b" data-id="${i}" pattern="[1-5](\.[0-9]{1,2})?">
         `;
         gamesContainer.appendChild(div);
       }
 
-      const inputs = document.querySelectorAll("input[type='text']");
-
-      // Логика ввода
-      inputs.forEach((input, index) => {
-        input.addEventListener("input", (e) => {
-          let value = e.target.value.replace(/[^0-9,]/g, "");
-          if (!value.includes(",")) {
-            if (value.length === 1) {
-              value += ",";
-            } else if (value.length > 1) {
-              value = value[0] + ",";
-            }
-          } else {
-            const parts = value.split(",");
-            if (parts[1].length > 2) {
-              parts[1] = parts[1].substring(0, 2);
-              value = parts.join(",");
-            }
+      // Валидация ввода
+      document.querySelectorAll('input[type="text"]').forEach(input => {
+        input.addEventListener('input', function(e) {
+          let value = e.target.value.replace(',', '.');
+          if (!/^[1-5](\.[0-9]{0,2})?$/.test(value)) {
+            value = value.substring(0, value.length - 1);
           }
           e.target.value = value;
-          if (value.includes(",") && value.split(",")[1].length === 2) {
-            const nextInput = inputs[index + 1];
-            if (nextInput) {
-              nextInput.focus();
-            } else {
-              e.target.blur(); // Скрываем клавиатуру на iPad
-            }
-          }
-        });
-        input.addEventListener("focus", () => {
-          input.select();
         });
       });
 
-      // Создаем нейросеть
+      // Показываем/скрываем лоадер
+      const showLoader = () => loader.classList.remove("hidden");
+      const hideLoader = () => loader.classList.add("hidden");
+
+      // Создаем и обучаем модель
       const createModel = () => {
         const model = tf.sequential();
-        model.add(tf.layers.dense({ inputShape: [10], units: 32, activation: 'relu' }));
-        model.add(tf.layers.dropout({ rate: 0.2 }));
-        model.add(tf.layers.dense({ units: 16, activation: 'relu' }));
-        model.add(tf.layers.dropout({ rate: 0.2 }));
+        model.add(tf.layers.dense({ 
+          inputShape: [10], 
+          units: 64, 
+          activation: 'relu',
+          kernelRegularizer: tf.regularizers.l2({ l2: 0.01 })
+        }));
+        model.add(tf.layers.dropout({ rate: 0.3 }));
+        model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
         model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
+        
         model.compile({
           optimizer: tf.train.adam(0.001),
           loss: 'binaryCrossentropy',
           metrics: ['accuracy']
         });
+        
         return model;
       };
 
-      const model = createModel();
+      // Генерация тренировочных данных
+      const generateTrainingData = (samples = 200) => {
+        const xs = [];
+        const ys = [];
+        
+        // Паттерны для разных сценариев
+        const patterns = [
+          { start: 1.7, trend: -0.03, noise: 0.08, label: 1 }, // Игрок A выигрывает
+          { start: 2.2, trend: 0.04, noise: 0.12, label: 0 },  // Игрок B выигрывает
+          { start: 1.9, trend: 0.0, noise: 0.15, label: Math.random() > 0.5 ? 1 : 0 } // Случайный результат
+        ];
 
-      // Расширенные данные для обучения
-      const xs = tf.tensor2d([
-        // Игрок A выигрывает
-        [2.1, 2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2],
-        [1.9, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1],
-        [2.5, 2.4, 2.3, 2.2, 2.1, 2.0, 1.9, 1.8, 1.7, 1.6],
-        [1.8, 1.7, 1.7, 1.6, 1.6, 1.5, 1.5, 1.4, 1.4, 1.3],
-
-        // Игрок B выигрывает
-        [1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7],
-        [2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9],
-        [3.0, 2.9, 2.8, 2.7, 2.6, 2.5, 2.4, 2.3, 2.2, 2.1],
-        [2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4]
-      ]);
-      const ys = tf.tensor1d([1, 1, 1, 1, 0, 0, 0, 0]); // 1 - Игрок A, 0 - Игрок B
-
-      await model.fit(xs, ys, {
-        epochs: 100,
-        validationSplit: 0.2,
-        callbacks: {
-          onEpochEnd: (epoch, logs) => {
-            if ((epoch + 1) % 10 === 0) {
-              console.log(`Epoch ${epoch + 1}: Loss = ${logs.loss.toFixed(4)}, Accuracy = ${logs.accuracy.toFixed(4)}`);
-            }
-          }
-        }
-      });
-
-      // Функции обработки данных
-      const normalize = (arr) => {
-        if (arr.length === 0) return [];
-        const min = Math.min(...arr);
-        const max = Math.max(...arr);
-        const divisor = max - min < 0.1 ? 0.1 : max - min;
-        return arr.map(x => (x - min) / divisor);
-      };
-
-      const weightedAvg = (arr, ws) => {
-        if (arr.length === 0 || ws.length === 0) return 0;
-        const effectiveLength = Math.min(arr.length, ws.length);
-        const normalizedArr = normalize(arr.slice(0, effectiveLength));
-        const weightedSum = normalizedArr.reduce((sum, val, i) => sum + val * ws[i], 0);
-        const weightSum = ws.slice(0, effectiveLength).reduce((a, b) => a + b, 0);
-        return weightedSum / weightSum;
-      };
-
-      const trend = (arr) => {
-        if (arr.length < 2) return 0;
-        const slopes = arr.slice(1).map((v, i) => v - arr[i]);
-        const avgSlope = slopes.reduce((sum, d) => sum + d, 0) / slopes.length;
-        const avgValue = arr.reduce((sum, v) => sum + v, 0) / arr.length;
-        return avgSlope / (avgValue || 1);
-      };
-
-      const stability = (arr) => {
-        if (arr.length < 2) return 0;
-        const diffs = arr.slice(1).map((v, i) => Math.abs(v - arr[i]));
-        const avgDiff = diffs.reduce((sum, d) => sum + d, 0) / diffs.length;
-        const avgValue = arr.reduce((sum, v) => sum + v, 0) / arr.length;
-        return 1 - (avgDiff / (avgValue || 1));
-      };
-
-      const varianceAnalysis = (arr) => {
-        if (arr.length < 2) return 0;
-        const mean = arr.reduce((sum, v) => sum + v, 0) / arr.length;
-        const squaredDeviations = arr.map(v => Math.pow(v - mean, 2));
-        const variance = squaredDeviations.reduce((sum, v) => sum + v, 0) / arr.length;
-        return 1 - (variance / (mean * mean + 0.1));
-      };
-
-      const predictProbability = async (valuesA, valuesB) => {
-        if (valuesA.length === 0 && valuesB.length === 0) return { winner: "Ничья", confidence: 0 };
-
-        const weights = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.1];
-
-        const avgA = weightedAvg(valuesA, weights);
-        const avgB = weightedAvg(valuesB, weights);
-
-        const trendA = trend(valuesA);
-        const trendB = trend(valuesB);
-
-        const stableA = stability(valuesA);
-        const stableB = stability(valuesB);
-
-        const varA = varianceAnalysis(valuesA);
-        const varB = varianceAnalysis(valuesB);
-
-        const predictionA = await model.predict(tf.tensor2d([normalize(valuesA)])).data();
-        const predictionB = await model.predict(tf.tensor2d([normalize(valuesB)])).data();
-
-        const weightAvg = 0.3;
-        const weightTrend = 0.2;
-        const weightStability = 0.2;
-        const weightVariance = 0.2;
-        const weightAI = 0.1;
-
-        const ratingA =
-          weightAvg * avgA +
-          weightTrend * (trendA > 0 ? 1 : 0) +
-          weightStability * stableA +
-          weightVariance * varA +
-          weightAI * predictionA[0];
-
-        const ratingB =
-          weightAvg * avgB +
-          weightTrend * (trendB > 0 ? 1 : 0) +
-          weightStability * stableB +
-          weightVariance * varB +
-          weightAI * predictionB[0];
-
-        let winner = "Ничья";
-        let confidence = 0;
-
-        if (ratingA > ratingB) {
-          winner = "Игрок A";
-          confidence = ratingA / (ratingA + ratingB);
-        } else if (ratingB > ratingA) {
-          winner = "Игрок B";
-          confidence = ratingB / (ratingA + ratingB);
+        for (let i = 0; i < samples; i++) {
+          const pattern = patterns[i % patterns.length];
+          const game = Array.from({ length: 10 }, (_, j) => {
+            const baseValue = pattern.start + (j * pattern.trend);
+            const noise = (Math.random() * 2 - 1) * pattern.noise;
+            return parseFloat((baseValue + noise).toFixed(2));
+          });
+          
+          xs.push(game);
+          ys.push(pattern.label);
         }
 
         return {
-          winner,
-          confidence: confidence * 100,
-          stats: {
-            avgA: avgA.toFixed(2),
-            avgB: avgB.toFixed(2),
-            trendA: trendA.toFixed(2),
-            trendB: trendB.toFixed(2),
-            stableA: stableA.toFixed(2),
-            stableB: stableB.toFixed(2),
-            varA: varA.toFixed(2),
-            varB: varB.toFixed(2),
-            aiA: predictionA[0].toFixed(2),
-            aiB: predictionB[0].toFixed(2)
-          }
+          xs: tf.tensor2d(xs),
+          ys: tf.tensor1d(ys)
         };
       };
 
-      predictBtn.addEventListener("click", async () => {
-        const valuesA = [];
-        const valuesB = [];
-
-        inputs.forEach((input) => {
-          const valueStr = input.value.replace(/,/g, ".");
-          const value = parseFloat(valueStr);
-          if (!isNaN(value)) {
-            if (input.dataset.player === "a") {
-              valuesA.push(value);
-            } else {
-              valuesB.push(value);
+      // Инициализация модели
+      const initModel = async () => {
+        showLoader();
+        try {
+          const model = createModel();
+          const { xs, ys } = generateTrainingData();
+          
+          await model.fit(xs, ys, {
+            epochs: 100,
+            batchSize: 16,
+            validationSplit: 0.2,
+            callbacks: {
+              onEpochEnd: (epoch, logs) => {
+                if ((epoch + 1) % 20 === 0) {
+                  console.log(`Эпоха ${epoch + 1}: Ошибка = ${logs.loss.toFixed(4)}`);
+                }
+              }
             }
-          }
-        });
+          });
+          
+          return model;
+        } catch (error) {
+          console.error("Ошибка инициализации модели:", error);
+          alert("Ошибка при создании модели");
+          return null;
+        } finally {
+          hideLoader();
+        }
+      };
 
-        if (valuesA.length === 0 && valuesB.length === 0) {
-          alert("Введите хотя бы один коэффициент.");
-          return;
+      const model = await initModel();
+      if (!model) return;
+
+      // Нормализация коэффициентов
+      const normalizeCoefficients = (coeffs) => {
+        // Приводим к диапазону 0-1 (1.0 = минимальный коэффициент - высокая вероятность)
+        const min = 1.0;
+        const max = 5.0;
+        return coeffs.map(x => (5.0 - x) / 4.0);
+      };
+
+      // Дополнение массива до нужной длины
+      const padArray = (arr, length) => {
+        if (arr.length >= length) return arr.slice(0, length);
+        const avg = arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 1.5;
+        return [...arr, ...Array(length - arr.length).fill(avg)];
+      };
+
+      // Прогнозирование победителя
+      const predictWinner = async () => {
+        if (currentPrediction) {
+          tf.dispose(currentPrediction);
         }
 
-        const { winner, confidence, stats } = await predictProbability(valuesA, valuesB);
+        showLoader();
+        try {
+          const inputs = document.querySelectorAll('input[type="text"]');
+          const playerA = [];
+          const playerB = [];
+          
+          inputs.forEach(input => {
+            const value = parseFloat(input.value);
+            if (!isNaN(value) && value >= 1.0 && value <= 5.0) {
+              input.dataset.player === 'a' 
+                ? playerA.push(value) 
+                : playerB.push(value);
+            }
+          });
 
-        avgASpan.textContent = stats.avgA;
-        avgBSpan.textContent = stats.avgB;
+          if (playerA.length === 0 || playerB.length === 0) {
+            alert("Введите коэффициенты для обоих игроков!");
+            return;
+          }
+
+          // Дополняем и нормализуем данные
+          const processedA = normalizeCoefficients(padArray(playerA, 10));
+          const processedB = normalizeCoefficients(padArray(playerB, 10));
+          
+          // Делаем прогноз
+          const predictionA = await model.predict(tf.tensor2d([processedA])).data();
+          const predictionB = await model.predict(tf.tensor2d([processedB])).data();
+          
+          // Вероятности победы
+          const probA = (1 - predictionA[0]) * 100;
+          const probB = (1 - predictionB[0]) * 100;
+          
+          displayResults(probA, probB, playerA, playerB);
+          
+        } catch (error) {
+          console.error("Ошибка прогнозирования:", error);
+          alert("Ошибка при анализе данных");
+        } finally {
+          hideLoader();
+        }
+      };
+
+      // Отображение результатов
+      const displayResults = (probA, probB, valuesA, valuesB) => {
+        const winner = probA > probB ? "Игрок A" : "Игрок B";
+        const confidence = Math.max(probA, probB);
+        const diff = Math.abs(probA - probB);
+        
+        avgASpan.textContent = probA.toFixed(1) + '%';
+        avgBSpan.textContent = probB.toFixed(1) + '%';
         winnerSpan.textContent = `${winner} (${confidence.toFixed(1)}% уверенность)`;
+        
+        // Анализ результата
+        let analysis = "";
+        if (diff < 10) {
+          analysis = "⚔️ Ожидается равная борьба!";
+        } else if (probA > 70) {
+          analysis = "🔥 Игрок A — явный фаворит";
+        } else if (probB > 70) {
+          analysis = "🔥 Игрок B — явный фаворит";
+        } else {
+          analysis = "🎾 Интригующий матч!";
+        }
+        
+        analysisDiv.textContent = analysis;
         resultDiv.classList.remove("hidden");
+        
+        updateChart(valuesA, valuesB);
+      };
 
+      // Обновление графика
+      const updateChart = (valuesA, valuesB) => {
         if (chartInstance) chartInstance.destroy();
+        
         const ctx = chartCanvas.getContext('2d');
         chartInstance = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: Array.from({ length: gameCount }, (_, i) => `Гейм ${i + 1}`),
+            labels: Array.from({ length: Math.max(valuesA.length, valuesB.length) }, (_, i) => `Гейм ${i + 1}`),
             datasets: [
               {
                 label: 'Игрок A',
                 data: valuesA,
                 borderColor: '#4f46e5',
-                fill: false,
-                tension: 0.3
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.3,
+                fill: true
               },
               {
                 label: 'Игрок B',
                 data: valuesB,
                 borderColor: '#ec4899',
-                fill: false,
-                tension: 0.3
+                backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                tension: 0.3,
+                fill: true
               }
             ]
           },
           options: {
             responsive: true,
-            scales: {
-              y: {
-                beginAtZero: false
-              }
-            },
             plugins: {
               legend: {
-                labels: {
-                  color: 'white'
+                labels: { color: '#fff' }
+              },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(2)}`
                 }
+              }
+            },
+            scales: {
+              x: { 
+                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: { color: '#ccc' }
+              },
+              y: { 
+                min: 1.0,
+                max: 5.0,
+                grid: { color: 'rgba(255,255,255,0.1)' },
+                ticks: { color: '#ccc' }
               }
             }
           }
         });
-      });
+      };
+
+      // Обработчик кнопки
+      predictBtn.addEventListener("click", predictWinner);
     });
   </script>
 </body>
