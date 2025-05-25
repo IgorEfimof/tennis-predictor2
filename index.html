@@ -1,213 +1,194 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <!-- Остальные мета-теги и стили остаются без изменений -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Прогноз теннисного матча</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .game-input {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+    }
+    input {
+      width: 80px;
+      padding: 5px;
+    }
+    button {
+      padding: 10px 15px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-  <!-- HTML-структура остается без изменений -->
+  <h1>Прогноз теннисного матча</h1>
+  <p>Введите коэффициенты для каждого игрока (от 1.0 до 5.0)</p>
+  
+  <div id="games-container"></div>
+  
+  <button id="predict-btn">Прогнозировать</button>
+  
+  <div id="result" class="hidden">
+    <h3>Результат:</h3>
+    <p>Вероятность победы Игрока A: <span id="prob-a"></span>%</p>
+    <p>Вероятность победы Игрока B: <span id="prob-b"></span>%</p>
+    <p><strong>Прогноз:</strong> <span id="winner"></span></p>
+  </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", async () => {
-      // Проверка загрузки TensorFlow.js
-      if (!window.tf) {
-        showError("TensorFlow.js не загружен. Пожалуйста, обновите страницу.");
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Проверяем загрузку TensorFlow.js
+      if (!tf) {
+        alert('TensorFlow.js не загружен. Проверьте интернет-соединение.');
         return;
       }
 
-      // Остальные константы и переменные
-      
-      // Основные исправления:
+      // Создаем поля для ввода
+      const gamesContainer = document.getElementById('games-container');
+      for (let i = 1; i <= 5; i++) {
+        const div = document.createElement('div');
+        div.className = 'game-input';
+        div.innerHTML = `
+          <span>Гейм ${i}:</span>
+          <input type="number" id="game-${i}-a" placeholder="A" min="1" max="5" step="0.01">
+          <input type="number" id="game-${i}-b" placeholder="B" min="1" max="5" step="0.01">
+        `;
+        gamesContainer.appendChild(div);
+      }
 
-      // 1. Оптимизированная функция создания модели
+      // Создаем простую модель
       const createModel = () => {
-        try {
-          const model = tf.sequential();
-          model.add(tf.layers.dense({ 
-            inputShape: [10], 
-            units: 32,  // Уменьшено количество нейронов
-            activation: 'relu',
-            kernelRegularizer: tf.regularizers.l2({ l2: 0.01 })
-          }));
-          model.add(tf.layers.dropout({ rate: 0.2 }));  // Уменьшен dropout
-          model.add(tf.layers.dense({ units: 16, activation: 'relu' })); // Упрощена архитектура
-          model.add(tf.layers.dense({ units: 1, activation: 'sigmoid' }));
-          
-          model.compile({
-            optimizer: tf.train.adam(0.001),
-            loss: 'binaryCrossentropy',
-            metrics: ['accuracy']
-          });
-          
-          return model;
-        } catch (error) {
-          console.error("Ошибка создания модели:", error);
-          return null;
-        }
+        const model = tf.sequential();
+        model.add(tf.layers.dense({
+          inputShape: [5],
+          units: 8,
+          activation: 'relu'
+        }));
+        model.add(tf.layers.dense({
+          units: 1,
+          activation: 'sigmoid'
+        }));
+        model.compile({
+          optimizer: 'adam',
+          loss: 'binaryCrossentropy'
+        });
+        return model;
       };
 
-      // 2. Оптимизированная генерация данных
-      const generateTrainingData = (samples = 200) => {  // Уменьшено количество образцов
-        try {
-          const xs = [];
-          const ys = [];
-          
-          const patterns = [
-            { start: 1.5, trend: -0.02, noise: 0.05, label: 1 },
-            { start: 2.5, trend: 0.03, noise: 0.08, label: 0 },
-            { start: 1.9, trend: 0.0, noise: 0.1, label: 0.5 }
-          ];
-
-          for (let i = 0; i < samples; i++) {
-            const pattern = patterns[i % patterns.length];
-            const game = Array.from({ length: 10 }, (_, j) => {
-              const baseValue = pattern.start + (j * pattern.trend);
-              const noise = (Math.random() * 2 - 1) * pattern.noise;
-              return Math.min(5.0, Math.max(1.0, parseFloat((baseValue + noise).toFixed(2)));
-            });
-            
-            xs.push(game);
-            ys.push(pattern.label);
+      // Генерируем простые тренировочные данные
+      const generateTrainingData = () => {
+        const xs = [];
+        const ys = [];
+        
+        for (let i = 0; i < 100; i++) {
+          // Игрок A фаворит
+          if (i % 3 === 0) {
+            xs.push([1.2 + Math.random()*0.3, 1.3 + Math.random()*0.3, 
+                    1.1 + Math.random()*0.3, 1.4 + Math.random()*0.3, 
+                    1.2 + Math.random()*0.3]);
+            ys.push(1);
+          } 
+          // Игрок B фаворит
+          else if (i % 3 === 1) {
+            xs.push([2.5 + Math.random()*0.5, 2.3 + Math.random()*0.5, 
+                    2.6 + Math.random()*0.5, 2.4 + Math.random()*0.5, 
+                    2.5 + Math.random()*0.5]);
+            ys.push(0);
           }
-
-          return {
-            xs: tf.tensor2d(xs),
-            ys: tf.tensor1d(ys)
-          };
-        } catch (error) {
-          console.error("Ошибка генерации данных:", error);
-          return null;
+          // Равные шансы
+          else {
+            xs.push([1.8 + Math.random()*0.4, 1.7 + Math.random()*0.4, 
+                    1.9 + Math.random()*0.4, 1.8 + Math.random()*0.4, 
+                    1.7 + Math.random()*0.4]);
+            ys.push(0.5);
+          }
         }
+        
+        return {
+          xs: tf.tensor2d(xs),
+          ys: tf.tensor1d(ys)
+        };
       };
 
-      // 3. Оптимизированное обучение модели
-      const initModel = async () => {
-        showLoader();
+      // Инициализация модели
+      const model = createModel();
+      const trainingData = generateTrainingData();
+      
+      // Быстрое обучение (5 эпох)
+      await model.fit(trainingData.xs, trainingData.ys, {
+        epochs: 5,
+        batchSize: 10,
+        verbose: 0
+      });
+      
+      // Очищаем память
+      tf.dispose([trainingData.xs, trainingData.ys]);
+
+      // Обработчик кнопки прогноза
+      document.getElementById('predict-btn').addEventListener('click', async () => {
         try {
-          const newModel = createModel();
-          if (!newModel) throw new Error("Не удалось создать модель");
-          
-          const trainingData = generateTrainingData();
-          if (!trainingData) throw new Error("Не удалось сгенерировать данные");
-          
-          // Уменьшено количество эпох и добавлена проверка на прерывание
-          let stopTraining = false;
-          const stopBtn = document.createElement("button");
-          stopBtn.textContent = "Прервать обучение";
-          stopBtn.style.marginTop = "10px";
-          stopBtn.onclick = () => { stopTraining = true; };
-          loader.appendChild(stopBtn);
-
-          await newModel.fit(trainingData.xs, trainingData.ys, {
-            epochs: 30,  // Уменьшено количество эпох
-            batchSize: 16,
-            validationSplit: 0.2,
-            callbacks: {
-              onEpochEnd: (epoch, logs) => {
-                if ((epoch + 1) % 5 === 0) {
-                  console.log(`Эпоха ${epoch + 1}: Ошибка = ${logs.loss.toFixed(4)}`);
-                }
-                if (stopTraining) {
-                  newModel.stopTraining = true;
-                  console.log("Обучение прервано пользователем");
-                }
-              }
-            }
-          });
-          
-          // Очищаем тензоры
-          tf.dispose([trainingData.xs, trainingData.ys]);
-          loader.removeChild(stopBtn);
-          
-          return newModel;
-        } catch (error) {
-          console.error("Ошибка инициализации модели:", error);
-          showError("Ошибка при создании модели. Пожалуйста, обновите страницу.");
-          return null;
-        } finally {
-          hideLoader();
-        }
-      };
-
-      // 4. Оптимизированное предсказание
-      const predictWinner = async () => {
-        if (!model || !isModelReady) {
-          showError("Модель не готова. Пожалуйста, подождите...");
-          return;
-        }
-
-        showLoader();
-        hideError();
-        try {
-          // Быстрый сбор данных без сложных операций
-          const inputs = Array.from(document.querySelectorAll('input[type="text"]'));
+          // Собираем данные
           const playerA = [];
           const playerB = [];
           
-          inputs.forEach(input => {
-            const value = parseFloat(input.value);
-            if (!isNaN(value) && value >= 1.0 && value <= 5.0) {
-              input.dataset.player === 'a' ? playerA.push(value) : playerB.push(value);
+          for (let i = 1; i <= 5; i++) {
+            const a = parseFloat(document.getElementById(`game-${i}-a`).value);
+            const b = parseFloat(document.getElementById(`game-${i}-b`).value);
+            
+            if (isNaN(a) || isNaN(b) || a < 1 || a > 5 || b < 1 || b > 5) {
+              alert(`Пожалуйста, введите корректные значения для Гейма ${i} (от 1.0 до 5.0)`);
+              return;
             }
-          });
-
-          if (playerA.length === 0 || playerB.length === 0) {
-            showError("Введите коэффициенты для обоих игроков!");
-            return;
+            
+            playerA.push(a);
+            playerB.push(b);
           }
-
-          // Оптимизированные вычисления
-          const processedA = normalizeCoefficients(padArray(playerA, 10));
-          const processedB = normalizeCoefficients(padArray(playerB, 10));
           
-          // Быстрое предсказание с контролем памяти
-          const tensorA = tf.tensor2d([processedA]);
-          const tensorB = tf.tensor2d([processedB]);
+          // Нормализуем данные (чем меньше коэффициент, тем выше вероятность)
+          const normalize = (coeffs) => coeffs.map(x => (5.0 - x) / 4.0);
           
-          const [predictionA, predictionB] = await Promise.all([
-            model.predict(tensorA).data(),
-            model.predict(tensorB).data()
-          ]);
+          // Делаем предсказание
+          const inputA = tf.tensor2d([normalize(playerA)]);
+          const inputB = tf.tensor2d([normalize(playerB)]);
           
-          const probA = (predictionA[0] * 100).toFixed(1);
-          const probB = (predictionB[0] * 100).toFixed(1);
+          const probA = (await model.predict(inputA).data())[0] * 100;
+          const probB = (await model.predict(inputB).data())[0] * 100;
           
-          // Немедленная очистка памяти
-          tf.dispose([tensorA, tensorB]);
+          // Очищаем память
+          tf.dispose([inputA, inputB]);
           
-          displayResults(probA, probB, playerA, playerB);
+          // Показываем результат
+          document.getElementById('prob-a').textContent = probA.toFixed(1);
+          document.getElementById('prob-b').textContent = probB.toFixed(1);
+          document.getElementById('winner').textContent = 
+            probA > probB ? 'Игрок A' : 'Игрок B';
+          document.getElementById('result').classList.remove('hidden');
           
         } catch (error) {
-          console.error("Ошибка прогнозирования:", error);
-          showError("Ошибка при анализе данных. Проверьте введенные значения.");
-        } finally {
-          hideLoader();
+          console.error('Ошибка:', error);
+          alert('Произошла ошибка при расчетах. Пожалуйста, проверьте введенные данные.');
         }
-      };
-
-      // Остальной код остается без изменений
-      
-      // Инициализация приложения с обработкой ошибок
-      const initApp = async () => {
-        showLoader();
-        try {
-          model = await initModel();
-          if (model) {
-            isModelReady = true;
-            validateInputs();
-            console.log("Модель успешно загружена и готова к использованию");
-          } else {
-            showError("Не удалось инициализировать модель");
-          }
-        } catch (error) {
-          console.error("Ошибка инициализации приложения:", error);
-          showError("Ошибка инициализации. Пожалуйста, обновите страницу.");
-        } finally {
-          hideLoader();
-        }
-      };
-
-      // Запускаем инициализацию
-      initApp();
+      });
     });
   </script>
 </body>
