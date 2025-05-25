@@ -402,13 +402,13 @@
         showLoader();
         try {
           const newModel = createModel();
-          const { xs, ys } = generateTrainingData();
-          
-          await newModel.fit(xs, ys, {
-            epochs: 30,
-            batchSize: 16,
-            validationSplit: 0.2,
-            callbacks: {
+          const { xs, ys } = generateTrainingData(150); // Было 500
+await newModel.fit(xs, ys, {
+  epochs: 30, // Было 100
+  batchSize: 16,
+  validationSplit: 0.2,
+});
+        callbacks: {
               onEpochEnd: (epoch, logs) => {
                 if ((epoch + 1) % 20 === 0) {
                   console.log(`Эпоха ${epoch + 1}: Ошибка = ${logs.loss.toFixed(4)}`);
