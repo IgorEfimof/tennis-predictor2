@@ -1,43 +1,41 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Прогноз победителя в настольном теннисе</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- Подключаем TensorFlow.js и Chart.js только при необходимости -->
-  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/debounce.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="container">
     <header>
       <h1>Прогноз победителя в настольном теннисе</h1>
-      <p>Введите коэффициенты игроков A и B для каждого гейма (формат: x.xx)</p>
+      <p>Введите коэффициенты на игроков A и B по каждому гейму.</p>
     </header>
     <main>
       <div class="players">
         <div class="player player-a">
-          <img src="images/player-a.jpg" alt="Игрок A">
+          <img src="https://via.placeholder.com/50x60" alt="Игрок A" />
           <span>Игрок A</span>
-          <span class="score">0</span>
         </div>
         <div class="player player-b">
-          <img src="images/player-b.jpg" alt="Игрок B">
+          <img src="https://via.placeholder.com/50x60" alt="Игрок B" />
           <span>Игрок B</span>
-          <span class="score">0</span>
         </div>
       </div>
       <div id="games"></div>
       <button id="predictBtn">Прогнозировать победителя</button>
       <div id="result" class="result hidden">
         <h2>Результат прогноза:</h2>
-        <p>Средний коэффициент A: <span id="avgA">–</span></p>
-        <p>Средний коэффициент B: <span id="avgB">–</span></p>
-        <p><strong>Победитель:</strong> <span id="winner">–</span></p>
+        <p>Средний коэффициент игрока A: <strong><span id="avgA"></span></strong></p>
+        <p>Средний коэффициент игрока B: <strong><span id="avgB"></span></strong></p>
+        <p><strong>Победитель:</strong> <span id="winner"></span></p>
+        <canvas id="chart"></canvas>
       </div>
-      <canvas id="chart" class="hidden"></canvas>
     </main>
   </div>
-  <script src="script.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
