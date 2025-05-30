@@ -1,0 +1,150 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-color: #121212;
+  --card-bg: #1e1e1e;
+  --text-color: white;
+  --accent: #4f46e5;
+  --accent-hover: #3730a3;
+  --border: #444;
+}
+
+html, body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  width: 100%;
+  height: 100%;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 100vh;
+}
+
+header {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+h1 {
+  font-size: 1.3rem;
+  margin-bottom: 0.3rem;
+}
+
+p {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.players {
+  display: flex;
+  justify-content: space-between;
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 45%;
+}
+
+.player img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+#games {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.game-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.game-input p {
+  font-weight: 600;
+}
+
+.game-input input {
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-color);
+  text-align: center;
+  font-size: 1rem;
+}
+
+button {
+  padding: 0.8rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-weight: bold;
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+.result {
+  background: var(--card-bg);
+  padding: 1rem;
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  animation: fadeIn 0.3s;
+}
+
+.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+  .container {
+    padding: 0.8rem;
+  }
+
+  .game-input {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .game-input p {
+    width: 20%;
+    font-size: 0.8rem;
+  }
+
+  .game-input input {
+    width: 38%;
+  }
+}
