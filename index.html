@@ -2,35 +2,28 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Прогноз на игру: ИИ vs Игрок</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Match Predictor</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>ИИ против Игрока</h1>
-      <p>Введите коэффициенты для трёх геймов. ИИ спрогнозирует победителя.</p>
+      <h1>Игра с адаптивным ИИ</h1>
+      <p>Вводи коэффициенты для каждого гейма. ИИ будет адаптироваться и пытаться тебя обыграть!</p>
     </header>
 
-    <div class="players">
-      <div class="player">
-        <img src="https://flagcdn.com/w320/ru.png" alt="Игрок A" />
-        <span>Игрок A (Вы)</span>
-      </div>
-      <div class="player">
-        <img src="https://flagcdn.com/w320/us.png" alt="ИИ" />
-        <span>Игрок B (ИИ)</span>
-      </div>
-    </div>
+    <div id="gameStatus"></div>
 
     <div id="games"></div>
-    <button id="predictBtn">Предсказать победителя</button>
+
+    <button id="nextRoundBtn">Следующий гейм</button>
+    <button id="resetBtn" class="hidden">Начать заново</button>
 
     <div id="result" class="result hidden">
-      <p>Средний коэф. A (Вы): <span id="avgA">0</span></p>
-      <p>Средний коэф. B (ИИ): <span id="avgB">0</span></p>
-      <p><strong>Победитель:</strong> <span id="winner">?</span></p>
+      <p>Средний коэффициент Игрока: <span id="avgPlayer"></span></p>
+      <p>Средний коэффициент ИИ: <span id="avgAI"></span></p>
+      <p><strong>Победитель: <span id="winner"></span></strong></p>
     </div>
   </div>
 
