@@ -1,107 +1,195 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const gameCount = 3;
-  const gamesContainer = document.getElementById("games");
-  const predictBtn = document.getElementById("predictBtn");
-  const resultDiv = document.getElementById("result");
-  const avgASpan = document.getElementById("avgA");
-  const avgBSpan = document.getElementById("avgB");
-  const winnerSpan = document.getElementById("winner");
+  const maxRounds = 7; // Можно изменить количество геймов
+  let currentRound = 1;
 
-  // Создаем поля ввода только для игрока A (пользователя)
-  for (let i = 1; i <= gameCount; i++) {
+  const gamesContainer = document.getElementById("games");
+  const nextRoundBtn = document.getElementById("nextRoundBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const resultDiv = document.getElementById("result");
+  const avgPlayerSpan = document.getElementById("avgPlayer");
+  const avgAISpan = document.getElementById("avgAI");
+  const winnerSpan = document.getElementById("winner");
+  const gameStatus = document.getElementById("gameStatus");
+
+  // Данные по раундам — храним коэффициенты игрока и ИИ
+  const roundsData = [];
+
+  // Создаем интерфейс для одного раунда (гейма)
+  function createRoundInputs(round) {
+    gamesContainer.innerHTML = "";
+
     const div = document.createElement("div");
     div.className = "game-input";
+
     div.innerHTML = `
-      <p><strong>Гейм ${i}</strong></p>
-      <input type="text" inputmode="numeric" placeholder="Коэффициент A (Вы)" data-player="a" data-id="${i}" maxlength="5">
+      <label for="playerInput">Коэффициент Игрока (x,xx):</label>
+      <input
+        id="playerInput"
+        type="text"
+        inputmode="numeric"
+        maxlength="5"
+        placeholder="например 1,23"
+        autocomplete="off"
+      />
+      <label>Коэффициент ИИ:</label>
+      <input
+        id="aiInput"
+        type="text"
+        disabled
+        value="--"
+        style="background:#444; color:#aaa; text-align:center;"
+      />
     `;
+
     gamesContainer.appendChild(div);
-  }
 
-  const inputs = document.querySelectorAll("input[type='text']");
-  inputs.forEach((input, index) => {
-    input.addEventListener("input", (e) => {
-      let value = e.target.value;
-      value = value.replace(/[^0-9,]/g, "");
+    const playerInput = document.getElementById("playerInput");
+    const aiInput = document.getElementById("aiInput");
 
-      if (!value.includes(",") && value.length >= 1) {
-        value = value.length > 1 ? value[0] + "," : value + ",";
+    // Форматируем ввод игрока
+    playerInput.addEventListener("input", (e) => {
+      let val = e.target.value;
+      val = val.replace(/[^0-9,]/g, "");
+
+      if (!val.includes(",") && val.length > 0) {
+        if (val.length > 1) {
+          val = val[0] + ",";
+        } else {
+          val += ",";
+        }
       }
 
-      if (value.includes(",")) {
-        const parts = value.split(",");
+      if (val.includes(",")) {
+        const parts = val.split(",");
         if (parts[1].length > 2) {
           parts[1] = parts[1].slice(0, 2);
         }
-        value = `${parts[0]},${parts[1]}`;
+        val = parts[0] + "," + parts[1];
       }
 
-      if (value.length > 5) {
-        value = value.slice(0, 5);
+      if (val.length > 5) {
+        val = val.slice(0, 5);
       }
 
-      e.target.value = value;
-
-      if (value.includes(",") && value.split(",")[1].length === 2) {
-        const nextInput = inputs[index + 1];
-        if (nextInput) {
-          nextInput.focus();
-        } else {
-          e.target.blur();
-        }
-      }
+      e.target.value = val;
     });
 
-    input.addEventListener("focus", () => input.select());
-  });
+    return { playerInput, aiInput };
+  }
 
-  predictBtn.addEventListener("click", () => {
-    const inputs = document.querySelectorAll("input[data-player='a']");
-    let totalA = 0;
-    let totalB = 0;
-    let validGames = 0;
+  // ИИ стратегия: вычислить коэффициент ИИ на основе предыдущих ходов игрока
+  // Простейший адаптивный подход:
+  // - Анализирует средний коэффициент игрока
+  // - Пытается немного "перебить" (снизить свой коэффициент на 0.05)
+  // - Если нет данных — ставит 1.50
+  function calculateAICoefficient() {
+    if (roundsData.length === 0) return 1.50;
 
-    inputs.forEach((input) => {
-      const valStr = input.value.replace(",", ".");
+    // Средний коэффициент игрока
+    const avgPlayer = roundsData.reduce((acc, r) => acc + r.player, 0) / roundsData.length;
+
+    // ИИ выбирает коэффициент на 0.05 ниже среднего игрока, но не ниже 1.01
+    let aiCoef = avgPlayer - 0.05;
+    if (aiCoef < 1.01) aiCoef = 1.01;
+
+    // Можно добавить небольшую рандомизацию, чтобы не быть слишком предсказуемым
+    const randOffset = (Math.random() * 0.02) - 0.01; // от -0.01 до +0.01
+    aiCoef += randOffset;
+
+    return parseFloat(aiCoef.toFixed(2));
+  }
+
+  // Начинаем раунд
+  function startRound() {
+    gameStatus.textContent = `Гейм ${currentRound} из ${maxRounds}`;
+
+    const { playerInput, aiInput } = createRoundInputs(currentRound);
+
+    aiInput.value = "--";
+
+    nextRoundBtn.disabled = true;
+
+    playerInput.focus();
+
+    playerInput.addEventListener("input", () => {
+      // Активируем кнопку "Следующий гейм" когда введен корректный коэффициент
+      const valStr = playerInput.value.replace(",", ".");
       const val = parseFloat(valStr);
-      if (!isNaN(val)) {
-        totalA += val;
-
-        // ИИ делает ставку — агрессивно или с поправкой
-        let aiValue;
-        if (val > 1.8) {
-          aiValue = (val - 0.4); // игрок слабеет → ИИ атакует
-        } else if (val < 1.5) {
-          aiValue = (val + 0.3); // игрок уверен → ИИ осторожен
-        } else {
-          aiValue = val;
-        }
-
-        totalB += aiValue;
-        validGames++;
+      if (!isNaN(val) && val >= 1 && val <= 10) {
+        nextRoundBtn.disabled = false;
+      } else {
+        nextRoundBtn.disabled = true;
       }
     });
 
-    if (validGames === 0) {
-      alert("Введите хотя бы один коэффициент.");
-      return;
-    }
+    nextRoundBtn.onclick = () => {
+      const valStr = playerInput.value.replace(",", ".");
+      const playerCoef = parseFloat(valStr);
 
-    const avgA = (totalA / validGames).toFixed(2);
-    const avgB = (totalB / validGames).toFixed(2);
+      if (isNaN(playerCoef) || playerCoef < 1 || playerCoef > 10) {
+        alert("Введите корректный коэффициент от 1.00 до 10.00");
+        return;
+      }
 
+      // Рассчитать коэффициент ИИ
+      const aiCoef = calculateAICoefficient();
+
+      aiInput.value = aiCoef.toFixed(2);
+
+      // Записать данные раунда
+      roundsData.push({ player: playerCoef, ai: aiCoef });
+
+      // Очистить ввод и отключить кнопку
+      nextRoundBtn.disabled = true;
+
+      // Переход к следующему раунду или показать результат
+      if (currentRound < maxRounds) {
+        currentRound++;
+        setTimeout(() => {
+          startRound();
+        }, 1000);
+      } else {
+        showResult();
+      }
+    };
+  }
+
+  // Показать итог
+  function showResult() {
+    gamesContainer.innerHTML = "";
+    nextRoundBtn.classList.add("hidden");
+    resetBtn.classList.remove("hidden");
+    gameStatus.textContent = "Игра завершена!";
+
+    // Средние значения
+    const avgPlayer = roundsData.reduce((acc, r) => acc + r.player, 0) / roundsData.length;
+    const avgAI = roundsData.reduce((acc, r) => acc + r.ai, 0) / roundsData.length;
+
+    avgPlayerSpan.textContent = avgPlayer.toFixed(2);
+    avgAISpan.textContent = avgAI.toFixed(2);
+
+    // Кто победил?
     let winner = "Ничья";
-    if (avgA < avgB) {
-      winner = "Игрок A (Вы)";
-    } else if (avgB < avgA) {
-      winner = "Игрок B (ИИ)";
-    }
+    if (avgPlayer < avgAI) winner = "Игрок";
+    else if (avgAI < avgPlayer) winner = "ИИ";
 
-    avgASpan.textContent = avgA;
-    avgBSpan.textContent = avgB;
     winnerSpan.textContent = winner;
 
     resultDiv.classList.remove("hidden");
-  });
+  }
+
+  // Сброс игры
+  resetBtn.onclick = () => {
+    currentRound = 1;
+    roundsData.length = 0;
+    resultDiv.classList.add("hidden");
+    nextRoundBtn.classList.remove("hidden");
+    resetBtn.classList.add("hidden");
+    startRound();
+  };
+
+  // Старт игры
+  startRound();
 });
+
 
