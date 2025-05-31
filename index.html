@@ -10,11 +10,10 @@
   <div class="container">
     <header>
       <h1>Игра с адаптивным ИИ</h1>
-      <p>Вводи коэффициенты для каждого гейма. ИИ будет адаптироваться и пытаться тебя обыграть!</p>
+      <p>Вводи букмекерские коэффициенты для каждого гейма. ИИ попытается определить шанс на победу лучше тебя.</p>
     </header>
 
     <div id="gameStatus"></div>
-
     <div id="games"></div>
 
     <button id="nextRoundBtn">Следующий гейм</button>
@@ -23,6 +22,7 @@
     <div id="result" class="result hidden">
       <p>Средний коэффициент Игрока: <span id="avgPlayer"></span></p>
       <p>Средний коэффициент ИИ: <span id="avgAI"></span></p>
+      <p>Оценка шанса на победу по мнению ИИ: <span id="aiVerdict"></span></p>
       <p><strong>Победитель: <span id="winner"></span></strong></p>
     </div>
   </div>
@@ -30,3 +30,4 @@
   <script src="script.js"></script>
 </body>
 </html>
+
