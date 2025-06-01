@@ -12,6 +12,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const gameStatus = document.getElementById("gameStatus");
   const aiVerdictSpan = document.getElementById("aiVerdict");
 
+  const valueBetParagraph = document.createElement("p");
+  valueBetParagraph.className = "value-bet";
+  resultDiv.appendChild(valueBetParagraph);
+
   const roundsData = [];
 
   function createRoundInputs(round) {
@@ -125,6 +129,15 @@ document.addEventListener("DOMContentLoaded", () => {
     else if (diff < -0.05) verdict = "Игрок переоценён";
 
     aiVerdictSpan.textContent = verdict;
+
+    // Вычисляем value ставки
+    const value = avgProbability * lastPlayerCoef;
+    if (value > 1.05) {
+      valueBetParagraph.textContent = "СТАВКА ВЫГОДНА: вероятность выше, чем даёт букмекер!";
+    } else {
+      valueBetParagraph.textContent = "Ставка не имеет явного преимущества.";
+    }
+
     resultDiv.classList.remove("hidden");
   }
 
@@ -139,3 +152,4 @@ document.addEventListener("DOMContentLoaded", () => {
 
   startRound();
 });
+
