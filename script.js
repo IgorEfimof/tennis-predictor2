@@ -16,6 +16,14 @@ document.addEventListener("DOMContentLoaded", () => {
   valueBetParagraph.className = "value-bet";
   resultDiv.appendChild(valueBetParagraph);
 
+  const roiParagraph = document.createElement("p");
+  roiParagraph.className = "value-bet";
+  resultDiv.appendChild(roiParagraph);
+
+  const recommendationParagraph = document.createElement("p");
+  recommendationParagraph.className = "value-bet";
+  resultDiv.appendChild(recommendationParagraph);
+
   const roundsData = [];
 
   function createRoundInputs(round) {
@@ -130,13 +138,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     aiVerdictSpan.textContent = verdict;
 
-    // Вычисляем value ставки
+    // VALUE BET логика
     const value = avgProbability * lastPlayerCoef;
+    const roi = (value - 1) * 100;
+
     if (value > 1.05) {
       valueBetParagraph.textContent = "СТАВКА ВЫГОДНА: вероятность выше, чем даёт букмекер!";
     } else {
       valueBetParagraph.textContent = "Ставка не имеет явного преимущества.";
     }
+
+    roiParagraph.textContent = `Ожидаемая доходность (ROI): ${roi.toFixed(2)}%`;
+
+    recommendationParagraph.textContent = value > 1.05 ? "✅ Рекомендация: СТАВИТЬ" : "❌ Рекомендация: НЕ СТАВИТЬ";
 
     resultDiv.classList.remove("hidden");
   }
@@ -152,4 +166,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   startRound();
 });
+
 
