@@ -116,6 +116,25 @@ button:hover {
   color: #ffd60a;
 }
 
+#bankSummary {
+  background-color: #262628;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  color: #aaa;
+}
+
+#strategySelector {
+  padding: 0.5rem;
+  background-color: #1f1f21;
+  color: #fff;
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
 .hidden {
   display: none;
 }
@@ -141,3 +160,4 @@ button:hover {
     font-size: 0.9rem;
   }
 }
+
